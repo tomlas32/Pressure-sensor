@@ -4,6 +4,8 @@ from matplotlib.animation import FuncAnimation
 import csv
 import time
 
+### testing this
+
 
 # define variables
 SERIAL_PORT = "COM4"
