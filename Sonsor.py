@@ -14,11 +14,11 @@ ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=5)
 
 # initialize lists for data storage
 #x_time = []
-value1_data = []
+sensor_values = []
 time_counter = []
 global_counter = 0
 # define function for data read and processing
-def serialRead():
+def read_serial():
     
     try:
 
@@ -38,18 +38,18 @@ def serialRead():
         global global_counter
         global_counter = global_counter + 0.1
 
-        value1_data.append(float(dataValues[4]))
+        sensor_values.append(float(dataValues[4]))
         time_counter.append(global_counter)
         
-    except(IndexError, UnicodeDecodeError, ValueError, KeyboardInterrupt):
-        pass
+    except(IndexError, UnicodeDecodeError, ValueError, KeyboardInterrupt) as e:
+        print(f"Exception: {e}")
 
 # define a function for plot update
-def plotUpdate(frame):
-    serialRead()
+def plot_update(frame):
+    read_serial()
 
     plt.cla()
-    plt.plot(time_counter, value1_data, label = "Value 1")
+    plt.plot(time_counter, sensor_values, label = "Value 1")
     plt.xlabel("Time [s]")
     plt.ylabel("Sensor")
     plt.legend()
@@ -57,21 +57,22 @@ def plotUpdate(frame):
 #define a function for saving data into csv
 def on_close(event): 
     current_time = strftime("%Y-%m-%d %H-%M-%S", time.localtime())
-    name = "Pressure readings " + str(current_time) + ".csv"
+    name = f"Pressure_readings_{current_time}.csv"
                                                     
     with open(name, "w", newline="") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(["Time", "Pressure reading"])
-        for t1, v1, in zip(time_counter, value1_data):
+        for t1, v1, in zip(time_counter, sensor_values):
             writer.writerow([t1, v1])
+    ser.close()
     exit()
 
 try:
     fig, ax = plt.subplots()
     fig.canvas.mpl_connect("close_event", on_close)                    #create callback logic closing the figure window and triggering csv save
-    ani_plot = FuncAnimation(fig, plotUpdate, interval=2)
+    ani_plot = FuncAnimation(fig, plot_update, interval=2, save_count=5000)
     plt.show()
 except(KeyboardInterrupt):
-    pass
+    ser.close()
        
 
