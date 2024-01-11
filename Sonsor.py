@@ -5,7 +5,6 @@ import csv
 import time
 from time import strftime
 
-<<<<<<< HEAD
 # Create a class to plot sensor data
 class SerialPlotter:
     def __init__(self, serial_port, baud_rate):
@@ -13,10 +12,6 @@ class SerialPlotter:
         self.sensor_values = []
         self.time_counter = []
         self.global_counter = 0
-=======
-### testing this
-
->>>>>>> 21775f6a071007a0683b5f5f9c3b5e3762207454
 
     # funtion to read serial data
     def read_serial_data(self):
