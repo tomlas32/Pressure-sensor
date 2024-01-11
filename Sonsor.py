@@ -5,74 +5,73 @@ import csv
 import time
 from time import strftime
 
+# Create a class to plot sensor data
+class SerialPlotter:
+    def __init__(self, serial_port, baud_rate):
+        self.ser = serial.Serial(serial_port, baud_rate, timeout=5)
+        self.sensor_values = []
+        self.time_counter = []
+        self.global_counter = 0
 
-# define variables
-SERIAL_PORT = "COM4"
-BAUD_RATE = 9600                                                    #read counter
-# initialize serial connection
-ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=5)
+    # funtion to read serial data
+    def read_serial_data(self):
+        try:
+            self.ser.flushOutput()
+            time.sleep(0.010)
+            data = self.ser.readline()
+            while "\\n" not in str(data):
+                time.sleep(0.001)
+                temp = self.ser.readline()
+                if temp.decode():
+                    data = (data.decode() + temp.decode()).encode()
+            data = data.decode().strip()
+            data_values = data.split(", ")
 
-# initialize lists for data storage
-#x_time = []
-sensor_values = []
-time_counter = []
-global_counter = 0
-# define function for data read and processing
-def read_serial():
-    
+            self.global_counter += 0.1
+            self.sensor_values.append(float(data_values[4]))
+            self.time_counter.append(self.global_counter)
+
+        except (IndexError, UnicodeDecodeError, ValueError, KeyboardInterrupt) as e:
+            print(f"Exception: {e}")
+
+    # function to update plots on new sensor data
+    def update_plot(self, frame):
+        self.read_serial_data()
+        plt.cla()
+        plt.plot(self.time_counter, self.sensor_values, label="Sensor Value")
+        plt.xlabel("Time [s]")
+        plt.ylabel("Sensor")
+        plt.legend()
+
+    # function to save data to csv
+    def save_to_csv(self, event):
+        current_time = strftime("%Y-%m-%d %H-%M-%S", time.localtime())
+        file_name = f"Pressure_readings_{current_time}.csv"
+
+        with open(file_name, "w", newline="") as csvfile:
+            writer = csv.writer(csvfile)
+            writer.writerow(["Time", "Pressure reading"])
+            for t, v in zip(self.time_counter, self.sensor_values):
+                writer.writerow([t, v])
+
+        self.ser.close()
+        exit()
+
+def main():
     try:
+        #inititate serial port read instance
+        serial_plotter = SerialPlotter(serial_port="COM4", baud_rate=9600)
 
-        ser.flushOutput()
-        time.sleep(.010)
-        data = ser.readline()
-        # check for end of line \n character
-        while not "\\n" in str(data):
-            time.sleep(.001)
-            temp = ser.readline()
-            if not not temp.decode():                               #check if temp is not empty the decode
-                data = (data.decode() + temp.decode()).encode()     #encoding needed as long values might need multiple passes 
+        fig, ax = plt.subplots()
+        #create callback logic closing the figure window and triggering csv save
+        fig.canvas.mpl_connect("close_event", serial_plotter.save_to_csv)
+        ani = FuncAnimation(fig, serial_plotter.update_plot, interval=2, save_count=5000)
+        plt.show()
 
-        data = data.decode().strip()
-        dataValues = data.split(", ")
+    except KeyboardInterrupt:
+        serial_plotter.ser.close()
 
-        global global_counter
-        global_counter = global_counter + 0.1
+if __name__ == "__main__":
+    main()
 
-        sensor_values.append(float(dataValues[4]))
-        time_counter.append(global_counter)
-        
-    except(IndexError, UnicodeDecodeError, ValueError, KeyboardInterrupt) as e:
-        print(f"Exception: {e}")
-
-# define a function for plot update
-def plot_update(frame):
-    read_serial()
-
-    plt.cla()
-    plt.plot(time_counter, sensor_values, label = "Value 1")
-    plt.xlabel("Time [s]")
-    plt.ylabel("Sensor")
-    plt.legend()
-
-#define a function for saving data into csv
-def on_close(event): 
-    current_time = strftime("%Y-%m-%d %H-%M-%S", time.localtime())
-    name = f"Pressure_readings_{current_time}.csv"
-                                                    
-    with open(name, "w", newline="") as csvfile:
-        writer = csv.writer(csvfile)
-        writer.writerow(["Time", "Pressure reading"])
-        for t1, v1, in zip(time_counter, sensor_values):
-            writer.writerow([t1, v1])
-    ser.close()
-    exit()
-
-try:
-    fig, ax = plt.subplots()
-    fig.canvas.mpl_connect("close_event", on_close)                    #create callback logic closing the figure window and triggering csv save
-    ani_plot = FuncAnimation(fig, plot_update, interval=2, save_count=5000)
-    plt.show()
-except(KeyboardInterrupt):
-    ser.close()
-       
 
