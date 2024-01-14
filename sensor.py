@@ -20,22 +20,20 @@ class SerialCommunication:
 
     def read_serial_data(self):
         try:
-            if self.ser.isOpen():
-                self.ser.flushOutput()
-                self.line = self.ser.readline().decode('utf-8').strip()
-                if self.line:
-                    self.timestamp = datetime.now().strftime('%H:%M:%S')
-                    while "\\n" not in str(self.line):
-                        self.temp = self.ser.readline()
-                        if self.temp.decode():
-                            self.data_read = (self.line.decode() + self.temp.decode()).encode()
-                        self.data_read = self.data_read.decode().strip()
-                    self.data_values = self.data_read.split(", ")
-                    self.value = float(self.data_values[4])
+            self.ser.flushOutput()
+            self.timestamp = datetime.now().strftime('%H:%M:%S')
+            line = self.ser.readline().decode()
+            if line:
+                while "\\n" not in str(line):
+                    temp = self.ser.readline().decode().strip()
+                    data_values = temp.split(" ")
+                    self.value = float(data_values[5])
                     self.data.append((self.timestamp, self.value))
-                    return self.timestamp, self.value
+            return self.data
         except serial.SerialException as e:
             raise serial.SerialException(f"Error reading from serial port: {e}")
+        except IndexError:
+            pass
 
     def close_serial_port(self):
         if self.ser:

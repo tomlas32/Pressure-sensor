@@ -28,9 +28,13 @@ class SerialPlotterApp:
         return self.available_ports
     
     def current_pressure(self):
-        self.value = self.serial_communication.read_serial_data()
-        self.s_current_value.config(text= self.value)
-        self.s_current_value.after(10, self.current_pressure) # update the value every 10 miliseconds
+        x = self.serial_communication.read_serial_data()
+        print(x)
+        if self.serial_communication.data:
+            print("Current pressure")
+            time, value = zip(*self.serial_communication.data)
+            self.s_current_value.config(text= value[-1])
+        self.s_current_value.after(100, self.current_pressure) # update the value every 10 miliseconds
     
     # create the GUI components
     def create_widgets(self):
@@ -50,7 +54,6 @@ class SerialPlotterApp:
         # Current sensor value
         self.s_current_value = ttk.Label(self.root, text="0.000", font=("Helvetica", 16))
         self.s_current_value.grid(row=1, column=2, padx=10, pady=5, sticky="n")
-        self.current_pressure()
 
         # Plotting
         self.fig = Figure(figsize=(6, 4), dpi=100)
@@ -69,19 +72,23 @@ class SerialPlotterApp:
         stop_button.grid(row=2, column=1, pady=10)
 
     def read_and_plot_data(self):
-        time, value = self.serial_communication.read_serial_data()
-        self.ax.clear()
-        self.ax.plot(time, value)
-        self.root.update_idletasks()
-        self.canvas.draw()
+        self.serial_communication.read_serial_data()
+        if self.serial_communication.data:
+            time, value = zip(*self.serial_communication.data)
+            self.ax.clear()
+            self.ax.plot(time, value)
+            self.root.update_idletasks()
+            self.canvas.draw()
+        
         self.root.after(100, self.read_and_plot_data) # triggers the function every 10 miliseconds
     
     def start_plotting(self):
-        com_port = self.com_port_var.get()
-
+        
         try:
+            com_port = self.com_port_var.get()
             self.serial_communication.open_serial_port(com_port)
-            self.read_and_plot_data()
+            #self.read_and_plot_data()
+            self.current_pressure()
         except serial.SerialException as e:
             print(e)  # You can handle errors as appropriate
 
