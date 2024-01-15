@@ -49,9 +49,12 @@ class SerialPlotter:
         self.read_serial_data()
         plt.cla()
         plt.plot(self.time_counter, self.sensor_values, label="Sensor Value")
+        current_value_text = f"Current Value: {self.sensor_values[-1]:.2f}"
+        plt.text(0.7, 1.1, current_value_text, transform=plt.gca().transAxes, 
+                    fontsize=12, verticalalignment='top', horizontalalignment='right')
+        plt.pause(0.01)
         plt.xlabel("Time [s]")
-        plt.ylabel("Sensor")
-        plt.legend()
+        plt.ylabel("Pressure [mbar]")
 
     # function to save data to csv
     def save_to_csv(self, event):
