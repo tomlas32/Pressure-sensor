@@ -7,61 +7,79 @@ sensor (read README for more details)
 
 Make sure to adjust the COM parameters to your specific configuration
 
+Version changes:
+Version 1.0 - first release
+Version 1.1 - rewored the constructor to include initialization of the plot animation 
+              to prevent flashing labels
+
 @author: Tomasz Lasota
-version: 1.0
+version: 1.1
 
 """
 
-import serial
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
-import csv
+import serial
 import time
-from time import strftime
+import csv
 
-
-# Create a class to plot sensor data 
 class SerialPlotter:
-
     def __init__(self, serial_port, baud_rate):
         self.ser = serial.Serial(serial_port, baud_rate, timeout=5)
+        self.fig, self.ax = plt.subplots()
+        self.line, = self.ax.plot([], [])
+        self.text = self.ax.text(0.7, 1.1, "", transform=self.ax.transAxes,
+                                 fontsize=12, verticalalignment='top', horizontalalignment='right')
+        self.ax.set_xlabel("Time [s]")
+        self.ax.set_ylabel("Pressure [mbar]")
+
+        # Create callback logic closing the figure window and triggering CSV save
+        self.fig.canvas.mpl_connect("close_event", self.save_to_csv)
+
         self.sensor_values = []
         self.time_counter = []
         self.global_counter = 0
 
-    # funtion to read serial data
+        # Set up animation
+        self.ani = FuncAnimation(self.fig, self.update_plot, interval=5)
+
+        plt.show()
+    # function to read and parse serial port data 
     def read_serial_data(self):
         try:
-            self.ser.flushOutput()
             data = self.ser.readline()
             if data:
                 data = data.decode().strip()
                 data_values = data.split(", ")
-            self.global_counter += 0.11
-            self.sensor_values.append(float(data_values[4]))
-            self.time_counter.append(self.global_counter)
+                self.global_counter += 0.11
+                return self.global_counter, float(data_values[4])
 
         except (IndexError, UnicodeDecodeError, ValueError, KeyboardInterrupt):
-            pass
-
-    # function to update plots and display current sensor value
+            return None
+    # function updating the animation plot with new serial data
     def update_plot(self, frame):
-        try:
-            self.read_serial_data()
-            plt.cla()
-            plt.plot(self.time_counter, self.sensor_values, label="Sensor Value")
-            current_value_text = f"Current Value: {self.sensor_values[-1]:.2f}"
-            plt.text(0.7, 1.1, current_value_text, transform=plt.gca().transAxes, 
-                        fontsize=12, verticalalignment='top', horizontalalignment='right')
-            plt.pause(0.01)
-            plt.xlabel("Time [s]")
-            plt.ylabel("Pressure [mbar]")
-        except IndexError:
-            pass
+        data = self.read_serial_data()
+        if data is not None:
+            time_val, sensor_val = data
+            self.time_counter.append(time_val)
+            self.sensor_values.append(sensor_val)
 
-    # function to save data to csv
+            if len(self.time_counter) > 0:
+                self.line.set_data(self.time_counter, self.sensor_values)
+                current_value_text = f"Current Value: {self.sensor_values[-1]:.2f}"
+                self.text.set_text(current_value_text)
+
+                # Explicitly set plot limits
+                self.ax.set_xlim(min(self.time_counter), max(self.time_counter))
+                self.ax.set_ylim(min(self.sensor_values) - 30, max(self.sensor_values) +50)
+                plt.pause(0.01)
+            else:
+                print(f"No data to plot")
+
+    # function for auto save of pressure readings data into csv
     def save_to_csv(self, event):
-        current_time = strftime("%Y-%m-%d %H-%M-%S", time.localtime())
+        self.ser.close()
+        current_time = time.strftime("%Y-%m-%d_%H-%M-%S")
         file_name = f"Pressure_readings_{current_time}.csv"
 
         with open(file_name, "w", newline="") as csvfile:
@@ -70,28 +88,9 @@ class SerialPlotter:
             for t, v in zip(self.time_counter, self.sensor_values):
                 writer.writerow([t, v])
 
-        self.ser.close()
         exit()
 
-def main(COM_PORT):
-    try:
-        #inititate serial port read instance
-        serial_plotter = SerialPlotter(serial_port=COM_PORT, baud_rate=9600)
-
-        fig, ax = plt.subplots()
-        #create callback logic closing the figure window and triggering csv save
-        fig.canvas.mpl_connect("close_event", serial_plotter.save_to_csv)
-        ani = FuncAnimation(fig, serial_plotter.update_plot, interval=5, save_count=5000)
-        plt.show()
-
-    except KeyboardInterrupt:
-        serial_plotter.ser.close()
-
 if __name__ == "__main__":
-
-##################user defined COM port#######################################
-    COM_PORT = "COM4"
-##############################################################################
-    main(COM_PORT)
-
-
+    COM_PORT = "COM9"
+    baud_rate = 9600
+    serial_plotter = SerialPlotter(COM_PORT, baud_rate)
